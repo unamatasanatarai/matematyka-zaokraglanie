@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zaokrąglanie liczb</title>
+<style>
+  :root {
+    --bg: #fff8ec;
+    --card: #ffffff;
+    --ink: #2b2d42;
+    --muted: #6b6f86;
+    --accent: #4f6bed;
+    --accent-ink: #ffffff;
+    --ok: #1f9d55;
+    --ok-bg: #e5f7ec;
+    --bad: #d9534f;
+    --bad-bg: #fdecea;
+    --place: #ffd166;
+    --decider: #ef476f;
+    --border: #e6e1d6;
+    --shadow: 0 10px 30px rgba(43, 45, 66, .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1d2a;
+      --card: #262938;
+      --ink: #f1f1f6;
+      --muted: #a5a8bd;
+      --accent: #7b91ff;
+      --accent-ink: #11131d;
+      --ok: #4ad38a;
+      --ok-bg: #1e3a2c;
+      --bad: #ff7b76;
+      --bad-bg: #42252a;
+      --place: #8a6d1f;
+      --decider: #ff6b8f;
+      --border: #3a3e52;
+      --shadow: 0 10px 30px rgba(0, 0, 0, .4);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", "Trebuchet MS", system-ui, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  main { width: 100%; max-width: 640px; }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  h1 { font-size: 1.7rem; margin: 0; }
+  .score { display: flex; gap: 8px; }
+  .chip {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: .95rem;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 28px 24px;
+    text-align: center;
+  }
+  .task { font-size: 1.25rem; color: var(--muted); margin: 0 0 12px; }
+  .task strong { color: var(--ink); }
+  .number {
+    font-size: clamp(2rem, 9vw, 3.6rem);
+    font-weight: 700;
+    letter-spacing: .02em;
+    margin: 8px 0 24px;
+    font-variant-numeric: tabular-nums;
+    word-break: break-all;
+    line-height: 1.3;
+  }
+  .number .d { display: inline-block; border-radius: 6px; padding: 0 1px; transition: background .2s; }
+  .number .gap { display: inline-block; width: .25em; }
+  .number .d.place { background: var(--place); }
+  .number .d.decider { color: var(--decider); text-decoration: underline; text-underline-offset: 6px; }
+  .answer-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  input[type="text"] {
+    font: inherit;
+    font-size: 1.6rem;
+    width: 100%;
+    max-width: 300px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 3px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    text-align: center;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"].ok { border-color: var(--ok); }
+  input[type="text"].bad { border-color: var(--bad); }
+  button {
+    font: inherit;
+    font-size: 1.3rem;
+    font-weight: 700;
+    padding: 12px 26px;
+    border: none;
+    border-radius: 14px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  button:active { transform: scale(.97); }
+  .hint { color: var(--muted); font-size: .9rem; margin: 10px 0 0; }
+  .feedback {
+    margin-top: 22px;
+    border-radius: 16px;
+    padding: 0 18px;
+    min-height: 0;
+    text-align: left;
+  }
+  .feedback:empty { display: none; }
+  .feedback.ok { background: var(--ok-bg); padding: 16px 18px; }
+  .feedback.bad { background: var(--bad-bg); padding: 16px 18px; }
+  .feedback.info { background: var(--bg); padding: 16px 18px; }
+  .feedback .title { font-size: 1.4rem; font-weight: 700; margin: 0 0 6px; }
+  .feedback.ok .title { color: var(--ok); }
+  .feedback.bad .title { color: var(--bad); }
+  .feedback p { margin: 4px 0; line-height: 1.45; }
+  .settings {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    justify-content: center;
+    color: var(--muted);
+    font-size: .95rem;
+  }
+  .settings label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .settings input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+  .settings select {
+    font: inherit;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    background: var(--card);
+    color: var(--ink);
+  }
+  .banner {
+    margin: 0 0 18px;
+    padding: 12px 20px;
+    border-radius: 18px;
+    background: linear-gradient(90deg, var(--accent), var(--decider));
+    color: #ffffff;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: .03em;
+    box-shadow: var(--shadow);
+  }
+  .banner span { display: inline-block; animation: wave 2.4s ease-in-out infinite; }
+  @keyframes wave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-3deg) scale(1.05); } }
+  @media (prefers-reduced-motion: reduce) { .banner span { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="banner" role="banner"><span>🎉 Dla Franka! 🎉</span></div>
+
+  <header>
+    <h1>Zaokrąglanie liczb</h1>
+    <div class="score">
+      <span class="chip">Poprawne: <span id="good">0</span> / <span id="total">0</span></span>
+      <span class="chip">Seria: <span id="streak">0</span></span>
+    </div>
+  </header>
+
+  <section class="card">
+    <p class="task" id="task"></p>
+    <div class="number" id="number" aria-live="polite"></div>
+    <div class="answer-row">
+      <input type="text" id="answer" inputmode="decimal" autocomplete="off" spellcheck="false"
+             aria-label="Twoja odpowiedź" placeholder="Twoja odpowiedź">
+      <button type="button" id="action">Sprawdź</button>
+    </div>
+    <p class="hint" id="hint"></p>
+    <div class="feedback" id="feedback" aria-live="polite"></div>
+  </section>
+
+  <div class="settings">
+    <label>
+      <input type="checkbox" id="useDot">
+      Używaj kropki (.) zamiast przecinka (,)
+    </label>
+    <label>
+      Rodzaj zadań:
+      <select id="mode">
+        <option value="all">Wszystkie</option>
+        <option value="int">Dziesiątki, setki, tysiące…</option>
+        <option value="dec">Części dziesiętne</option>
+      </select>
+    </label>
+  </div>
+</main>
+
+<script>
+  // Liczby przechowujemy jako BigInt przeskalowany o 10^9 (9 miejsc po przecinku),
+  // żeby uniknąć błędów zaokrągleń liczb zmiennoprzecinkowych.
+  const SCALE = 9;
+  const NNBSP = ' ';
+
+  const PLACES = {
+    4: { task: 'do dziesiątek tysięcy', gen: 'dziesiątek tysięcy' },
+    3: { task: 'do tysięcy', gen: 'tysięcy' },
+    2: { task: 'do setek', gen: 'setek' },
+    1: { task: 'do dziesiątek', gen: 'dziesiątek' },
+    0: { task: 'do jedności (do całości)', gen: 'jedności' },
+    '-1': { task: 'do części dziesiątych', gen: 'części dziesiątych', places: '1 miejsce' },
+    '-2': { task: 'do części setnych', gen: 'części setnych', places: '2 miejsca' },
+    '-3': { task: 'do części tysięcznych', gen: 'części tysięcznych', places: '3 miejsca' },
+    '-4': { gen: 'części dziesięciotysięcznych' }
+  };
+
+  const PRAISE = [
+    'Brawo!', 'Świetnie!', 'Doskonale!', 'Tak jest!', 'Znakomicie!',
+    'Super robota!', 'Właśnie tak!', 'Rewelacja!', 'Bezbłędnie!', 'Pięknie!',
+    'Wspaniale!', 'Dokładnie tak!', 'Mistrzowsko!', 'Gratulacje!', 'Idealnie!',
+    'Ekstra!', 'W dziesiątkę!', 'Fantastycznie!', 'Tak trzymaj!', 'Bardzo dobrze!'
+  ];
+  const ENCOURAGE = [
+    'Prawie!', 'Jeszcze nie tym razem.', 'Niezupełnie.', 'Blisko, ale nie do końca.',
+    'Spróbujmy jeszcze raz!', 'To nie to, ale nic się nie stało.', 'Ups, mała pomyłka.',
+    'Jeszcze troszkę!', 'Nie całkiem.', 'Niewiele brakowało!', 'Następnym razem się uda!',
+    'Hmm, to nie ta liczba.', 'Dobra próba!', 'Każdy się czasem myli.',
+    'Jesteś na dobrej drodze!', 'Uczymy się na błędach!', 'Prawie, prawie!',
+    'Głowa do góry!', 'Nie poddawaj się!', 'Spokojnie, następne pójdzie lepiej.'
+  ];
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    task: $('task'), number: $('number'), answer: $('answer'), action: $('action'),
+    hint: $('hint'), feedback: $('feedback'), useDot: $('useDot'), mode: $('mode'),
+    good: $('good'), total: $('total'), streak: $('streak')
+  };
+
+  const state = { task: null, checked: false, good: 0, total: 0, streak: 0, lastMsg: {} };
+
+  // ---------- Arytmetyka ----------
+  const pow10 = k => 10n ** BigInt(k);
+  const roundTo = (n, p) => { const u = pow10(SCALE + p); return ((n + u / 2n) / u) * u; };
+  const digitAt = (n, e) => Number((n / pow10(SCALE + e)) % 10n);
+
+  function splitParts(n, dp) {
+    const s = n.toString().padStart(SCALE + 1, '0');
+    return { int: s.slice(0, -SCALE), frac: s.slice(-SCALE).slice(0, dp) };
+  }
+
+  // ---------- Losowanie ----------
+  const randInt = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const digits = k => Array.from({ length: k }, () => randInt(0, 9)).join('');
+  const nonZero = () => String(randInt(1, 9));
+  const pick = arr => arr[randInt(0, arr.length - 1)];
+
+  function makeTask(mode) {
+    const kind = mode === 'all' ? (Math.random() < 0.5 ? 'int' : 'dec') : mode;
+    let p, intStr, decStr, n;
+    for (;;) {
+      if (kind === 'int') {
+        p = pick([1, 2, 3, 4]);
+        const len = p + 1 + Math.floor(Math.random() ** 1.5 * (9 - p)); // od p+1 do 9 cyfr
+        intStr = nonZero() + digits(len - 1);
+        decStr = Math.random() < 0.25 ? digits(randInt(0, 1)) + nonZero() : '';
+      } else {
+        p = pick([0, -1, -2, -3]);
+        const minDec = -p + 1;
+        let k = minDec + Math.floor(Math.random() ** 2 * (SCALE - minDec + 1));
+        intStr = Math.random() < 0.35 ? '0' : nonZero() + digits(randInt(0, 4));
+        if (intStr === '0' && Math.random() < 0.3) {
+          k = randInt(Math.max(k, 6), SCALE);
+          const zeros = randInt(2, k - 2);
+          decStr = '0'.repeat(zeros) + digits(k - zeros - 1) + nonZero();
+        } else {
+          decStr = digits(k - 1) + nonZero();
+        }
+      }
+      n = BigInt(intStr + decStr.padEnd(SCALE, '0'));
+      if (roundTo(n, p) !== n) break;
+    }
+    return { n, p, dp: decStr.length, expected: roundTo(n, p) };
+  }
+
+  // ---------- Formatowanie ----------
+  const sepChar = () => (els.useDot.checked ? '.' : ',');
+  const sepWord = () => (els.useDot.checked ? 'kropce' : 'przecinku');
+
+  function groupInt(str) {
+    return str.replace(/\B(?=(\d{3})+(?!\d))/g, NNBSP);
+  }
+  function groupFrac(str) {
+    return str.replace(/(\d{3})(?=\d)/g, '$1' + NNBSP);
+  }
+  function formatPlain(n, dp) {
+    const { int, frac } = splitParts(n, dp);
+    return groupInt(int) + (dp > 0 ? sepChar() + groupFrac(frac) : '');
+  }
+
+  function renderNumber(highlight) {
+    const { n, p, dp } = state.task;
+    const { int, frac } = splitParts(n, dp);
+    let html = '';
+    const digitSpan = (ch, e) => {
+      let cls = 'd';
+      if (highlight && e === p) cls += ' place';
+      if (highlight && e === p - 1) cls += ' decider';
+      return `<span class="${cls}">${ch}</span>`;
+    };
+    for (let i = 0; i < int.length; i++) {
+      const e = int.length - 1 - i;
+      html += digitSpan(int[i], e);
+      if (e > 0 && e % 3 === 0) html += '<span class="gap"></span>';
+    }
+    if (dp > 0) {
+      html += `<span class="d">${sepChar()}</span>`;
+      for (let i = 0; i < frac.length; i++) {
+        html += digitSpan(frac[i], -(i + 1));
+        if ((i + 1) % 3 === 0 && i + 1 < frac.length) html += '<span class="gap"></span>';
+      }
+    }
+    els.number.innerHTML = html;
+  }
+
+  function renderTask() {
+    const { p } = state.task;
+    const info = PLACES[p];
+    const extra = info.places ? ` <span>(${info.places} po ${sepWord()})</span>` : '';
+    els.task.innerHTML = `Zaokrąglij <strong>${info.task}</strong>${extra}:`;
+    els.hint.textContent = `Część dziesiętną oddziel ${els.useDot.checked ? 'kropką' : 'przecinkiem'}. ` +
+      'Tysiące możesz oddzielić spacją.';
+    renderNumber(state.checked);
+  }
+
+  // ---------- Odczyt odpowiedzi ----------
+  function parseAnswer(raw) {
+    let s = raw.replace(/[\s_'   ]/g, '');
+    if (!/^[0-9.,]+$/.test(s) || !/\d/.test(s)) return null;
+    const hasDot = s.includes('.'), hasComma = s.includes(',');
+    if (hasDot && hasComma) {
+      // Ostatni separator to separator dziesiętny, pozostałe grupują tysiące.
+      const dec = s.lastIndexOf('.') > s.lastIndexOf(',') ? '.' : ',';
+      const grp = dec === '.' ? ',' : '.';
+      s = s.split(grp).join('');
+      if (s.split(dec).length > 2) return null;
+      s = s.replace(dec, '.');
+    } else if (hasDot || hasComma) {
+      const sep = hasDot ? '.' : ',';
+      const count = s.split(sep).length - 1;
+      s = count > 1 ? s.split(sep).join('') : s.replace(sep, '.');
+    }
+    let [i, f = ''] = s.split('.');
+    if (f.length > SCALE) {
+      if (/[1-9]/.test(f.slice(SCALE))) return null;
+      f = f.slice(0, SCALE);
+    }
+    return BigInt((i || '0') + f.padEnd(SCALE, '0'));
+  }
+
+  // ---------- Przebieg ----------
+  function randomMessage(list, key) {
+    let msg;
+    do { msg = pick(list); } while (msg === state.lastMsg[key] && list.length > 1);
+    state.lastMsg[key] = msg;
+    return msg;
+  }
+
+  function explanation() {
+    const { n, p, expected } = state.task;
+    const d = digitAt(n, p - 1);
+    const rule = d >= 5
+      ? `Cyfra <b>${d}</b> to 5 lub więcej, więc zaokrąglamy <b>w górę</b>.`
+      : `Cyfra <b>${d}</b> jest mniejsza niż 5, więc zaokrąglamy <b>w dół</b>.`;
+    return `<p>Patrzymy na cyfrę ${PLACES[p - 1].gen}. ${rule}</p>` +
+      `<p>Wynik: <b>${formatPlain(expected, Math.max(0, -p))}</b></p>`;
+  }
+
+  function check() {
+    const value = parseAnswer(els.answer.value);
+    if (value === null) {
+      els.feedback.className = 'feedback info';
+      els.feedback.innerHTML = els.answer.value.trim() === ''
+        ? '<p>Wpisz swoją odpowiedź i naciśnij Enter.</p>'
+        : '<p>To nie wygląda na liczbę. Wpisz same cyfry i ewentualnie separator dziesiętny.</p>';
+      els.answer.focus();
+      return;
+    }
+    const ok = value === state.task.expected;
+    state.checked = true;
+    state.total++;
+    if (ok) { state.good++; state.streak++; } else { state.streak = 0; }
+
+    els.answer.readOnly = true;
+    els.answer.classList.add(ok ? 'ok' : 'bad');
+    els.feedback.className = 'feedback ' + (ok ? 'ok' : 'bad');
+    els.feedback.innerHTML =
+      `<p class="title">${randomMessage(ok ? PRAISE : ENCOURAGE, ok ? 'ok' : 'bad')}</p>` + explanation();
+    els.action.textContent = 'Dalej';
+    renderNumber(true);
+    updateScore();
+    els.answer.focus();
+  }
+
+  function next() {
+    state.task = makeTask(els.mode.value);
+    state.checked = false;
+    els.answer.value = '';
+    els.answer.readOnly = false;
+    els.answer.classList.remove('ok', 'bad');
+    els.feedback.className = 'feedback';
+    els.feedback.innerHTML = '';
+    els.action.textContent = 'Sprawdź';
+    renderTask();
+    els.answer.focus();
+  }
+
+  function updateScore() {
+    els.good.textContent = state.good;
+    els.total.textContent = state.total;
+    els.streak.textContent = state.streak;
+  }
+
+  const advance = () => (state.checked ? next() : check());
+
+  els.action.addEventListener('click', advance);
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (e.target === els.mode || e.target === els.useDot) return;
+    e.preventDefault();
+    advance();
+  });
+
+  els.useDot.addEventListener('change', () => {
+    try { localStorage.setItem('zaokraglanie-kropka', els.useDot.checked ? '1' : '0'); } catch (_) {}
+    renderTask();
+    if (state.checked) {
+      const title = els.feedback.querySelector('.title');
+      els.feedback.innerHTML = (title ? title.outerHTML : '') + explanation();
+    }
+    els.answer.focus();
+  });
+  els.mode.addEventListener('change', next);
+
+  try { els.useDot.checked = localStorage.getItem('zaokraglanie-kropka') === '1'; } catch (_) {}
+  next();
+</script>
+</body>
+</html>
